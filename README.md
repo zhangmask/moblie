@@ -252,12 +252,47 @@ npm run typecheck
 cargo fmt --all -- --check
 ```
 
+## Agent OS 后端
+
+仓库现在额外包含一个 `backend/` 目录，用来承接 Agent OS 黑客松 MVP 的链下能力：
+
+- 钱包验证：`POST /api/wallet/verify`
+- Agent 查询：`GET /api/agents`
+- 实例管理：`POST/GET/DELETE /api/instances`
+- 任务派发：`POST /api/instances/{id}/task`
+- 文件上传下载：`/api/instances/{id}/files`
+- 通知：`GET/WS /api/notifications/{wallet}`
+
+当前后端架构优先做“泛化能力接口”，而不是优先绑定某一家云厂商：
+
+- `backend/cloud/contracts/`：定义通用云能力接口
+- `backend/cloud/orchestrators/`：定义平台编排流程
+- `backend/cloud/registry.py`：按名称管理 provider
+- `backend/cloud/demo_provider.py`：默认演示 provider，不绑定真实云厂商
+- `backend/providers/tencent.py`：示例适配器，保留为后续真实接入入口，但不在默认运行链路中启用
+
+启动方式：
+
+```bash
+python -m venv backend\.venv
+backend\.venv\Scripts\pip install -r backend\requirements.txt
+backend\.venv\Scripts\uvicorn backend.main:app --reload
+```
+
+前端如何组合链上和链下调用，见：
+
+- `docs/frontend-integration.md`
+- `docs/backend-integration.md`
+
 ## 重要文件
 
 - `programs/omniclaw/src/lib.rs`：Anchor 合约代码。
 - `tests/omniclaw.ts`：端到端 Demo 测试。
 - `app/omniclawClient.ts`：前端调用 helper。
+- `app/agentOsApi.ts`：前端调用 Agent OS 后端的 helper。
+- `backend/cloud/`：泛化云能力接口、注册中心和编排层。
 - `docs/frontend-integration.md`：前端对接文档。
+- `docs/backend-integration.md`：后端对接文档。
 
 ## 当前 MVP 边界
 

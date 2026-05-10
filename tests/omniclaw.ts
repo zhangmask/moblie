@@ -1,13 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
-import { Omniclaw } from "../target/types/omniclaw";
+import type { Omniclaw } from "../types/omniclaw";
 
 describe("omniclaw", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   const program = anchor.workspace.omniclaw as Program<Omniclaw>;
+  const accounts = program.account as any;
 
   const STATUS_OPEN = 0;
   const STATUS_SUBMITTED = 1;
@@ -108,7 +109,7 @@ describe("omniclaw", () => {
       .signers([agentOwner])
       .rpc();
 
-    const registeredAgent = await program.account.agentAccount.fetch(
+    const registeredAgent = await accounts.agentAccount.fetch(
       agentAccount
     );
     expect(registeredAgent.owner.equals(agentOwner.publicKey)).to.equal(true);
@@ -130,7 +131,7 @@ describe("omniclaw", () => {
       "Create a small UI that registers agents, creates jobs, and shows vault balances."
     );
 
-    const createdJob = await program.account.jobAccount.fetch(job.publicKey);
+    const createdJob = await accounts.jobAccount.fetch(job.publicKey);
     expect(createdJob.creator.equals(provider.wallet.publicKey)).to.equal(true);
     expect(createdJob.agent.equals(agentAccount)).to.equal(true);
     expect(createdJob.bounty.toNumber()).to.equal(bounty.toNumber());
@@ -157,7 +158,7 @@ describe("omniclaw", () => {
       agentOwner,
       "ipfs://bafy-omniclaw-ui"
     );
-    const submittedJob = await program.account.jobAccount.fetch(job.publicKey);
+    const submittedJob = await accounts.jobAccount.fetch(job.publicKey);
     expect(submittedJob.status).to.equal(STATUS_SUBMITTED);
     expect(submittedJob.resultUri).to.equal(resultUri);
     expect(submittedJob.submittedAt.toNumber()).to.be.greaterThan(0);
@@ -184,8 +185,8 @@ describe("omniclaw", () => {
       })
       .rpc();
 
-    const completedJob = await program.account.jobAccount.fetch(job.publicKey);
-    const rewardedAgent = await program.account.agentAccount.fetch(
+    const completedJob = await accounts.jobAccount.fetch(job.publicKey);
+    const rewardedAgent = await accounts.agentAccount.fetch(
       agentAccount
     );
     const agentOwnerBalanceAfter = await provider.connection.getBalance(
@@ -221,7 +222,7 @@ describe("omniclaw", () => {
       agentOwner,
       "ipfs://bafy-low-quality-result"
     );
-    const badSubmittedJob = await program.account.jobAccount.fetch(
+    const badSubmittedJob = await accounts.jobAccount.fetch(
       badJob.job.publicKey
     );
     expect(badSubmittedJob.status).to.equal(STATUS_SUBMITTED);
@@ -246,8 +247,8 @@ describe("omniclaw", () => {
       })
       .rpc();
 
-    const slashedAgent = await program.account.agentAccount.fetch(agentAccount);
-    const slashedJob = await program.account.jobAccount.fetch(
+    const slashedAgent = await accounts.agentAccount.fetch(agentAccount);
+    const slashedJob = await accounts.jobAccount.fetch(
       badJob.job.publicKey
     );
     expect(slashedAgent.reputation.toNumber()).to.equal(90);
@@ -277,10 +278,10 @@ describe("omniclaw", () => {
       })
       .rpc();
 
-    const cancelledAgent = await program.account.agentAccount.fetch(
+    const cancelledAgent = await accounts.agentAccount.fetch(
       agentAccount
     );
-    const cancelledJob = await program.account.jobAccount.fetch(
+    const cancelledJob = await accounts.jobAccount.fetch(
       cancellableJob.job.publicKey
     );
     expect(cancelledJob.status).to.equal(STATUS_CANCELLED);
@@ -310,7 +311,7 @@ describe("omniclaw", () => {
         .rpc();
     }
 
-    const flooredAgent = await program.account.agentAccount.fetch(agentAccount);
+    const flooredAgent = await accounts.agentAccount.fetch(agentAccount);
     expect(flooredAgent.reputation.toNumber()).to.equal(0);
     console.log("8. 声誉最低值检查完成", {
       reputation: flooredAgent.reputation.toNumber(),
@@ -396,7 +397,7 @@ describe("omniclaw", () => {
       expect(`${error}`).to.include("UnauthorizedCreator");
     }
 
-    const stillSubmittedJob = await program.account.jobAccount.fetch(
+    const stillSubmittedJob = await accounts.jobAccount.fetch(
       guardedJob.job.publicKey
     );
     expect(stillSubmittedJob.status).to.equal(STATUS_SUBMITTED);
@@ -440,7 +441,7 @@ describe("omniclaw", () => {
       expect(`${error}`).to.include("JobNotSubmitted");
     }
 
-    const stillOpenJob = await program.account.jobAccount.fetch(
+    const stillOpenJob = await accounts.jobAccount.fetch(
       statefulJob.job.publicKey
     );
     expect(stillOpenJob.status).to.equal(STATUS_OPEN);

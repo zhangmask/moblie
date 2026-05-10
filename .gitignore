@@ -5,3 +5,9 @@ target
 node_modules
 test-ledger
 .yarn
+backend/.data
+backend/.venv
+backend/__pycache__
+backend/.pytest_cache
+**/__pycache__
+*.pyc

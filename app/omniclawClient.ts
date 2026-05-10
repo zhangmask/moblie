@@ -1,5 +1,5 @@
 import { AnchorProvider, BN, Program, web3 } from "@coral-xyz/anchor";
-import type { Omniclaw } from "../target/types/omniclaw";
+import type { Omniclaw } from "../types/omniclaw";
 
 export const STATUS_OPEN = 0;
 export const STATUS_SUBMITTED = 1;
@@ -48,6 +48,10 @@ export function walletPublicKey(program: Program<Omniclaw>) {
   }
 
   return publicKey;
+}
+
+function programAccounts(program: Program<Omniclaw>) {
+  return program.account as any;
 }
 
 export async function registerAgent(
@@ -191,21 +195,21 @@ export async function fetchAgent(
   program: Program<Omniclaw>,
   agentAccount: web3.PublicKey
 ) {
-  return program.account.agentAccount.fetch(agentAccount);
+  return programAccounts(program).agentAccount.fetch(agentAccount);
 }
 
 export async function fetchJob(
   program: Program<Omniclaw>,
   jobAccount: web3.PublicKey
 ) {
-  return program.account.jobAccount.fetch(jobAccount);
+  return programAccounts(program).jobAccount.fetch(jobAccount);
 }
 
 export async function fetchJobsByCreator(
   program: Program<Omniclaw>,
   creator: web3.PublicKey
 ) {
-  return program.account.jobAccount.all([
+  return programAccounts(program).jobAccount.all([
     {
       memcmp: {
         offset: JOB_CREATOR_MEMCMP_OFFSET,
@@ -219,7 +223,7 @@ export async function fetchJobsByAgent(
   program: Program<Omniclaw>,
   agentAccount: web3.PublicKey
 ) {
-  return program.account.jobAccount.all([
+  return programAccounts(program).jobAccount.all([
     {
       memcmp: {
         offset: JOB_AGENT_MEMCMP_OFFSET,

@@ -2,6 +2,17 @@
 
 本文档说明如何在 React、Next.js 或 Vite 前端中接入 OmniClaw Anchor 程序。
 
+链下市场与协议接口 helper 位于：
+
+```text
+app/agentOsApi.ts
+```
+
+当前已经补齐的核心入口：
+
+- `createAgentOsApiClient()`：链下 REST helper，覆盖市场、发布者、支付、评分、协议接口
+- `createAgentMarketClient()`：对齐 `search/hire/sendTask/fire/listHired/getReviews/autoHire` 的协议客户端层
+
 ## 生成 IDL 和类型文件
 
 只要 Rust 合约有变化，就运行：
