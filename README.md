@@ -252,31 +252,121 @@ npm run typecheck
 cargo fmt --all -- --check
 ```
 
-## Agent OS 后端
+## Agent OS 后端与市场协议
 
-仓库现在额外包含一个 `backend/` 目录，用来承接 Agent OS 黑客松 MVP 的链下能力：
+仓库现在额外包含一个 `backend/` 目录，用来承接 Agent OS 黑客松 MVP 的链下能力。当前实现目标不是先接真实云厂商，而是先把“市场协议 + 平台业务接口 + 编排层”跑通。
+
+### 当前已实现的链下能力
 
 - 钱包验证：`POST /api/wallet/verify`
-- Agent 查询：`GET /api/agents`
+- Agent 查询与筛选：`GET /api/agents`
 - 实例管理：`POST/GET/DELETE /api/instances`
+- 完整解雇语义：`POST /api/instances/{id}/fire`
 - 任务派发：`POST /api/instances/{id}/task`
 - 文件上传下载：`/api/instances/{id}/files`
 - 通知：`GET/WS /api/notifications/{wallet}`
+- 镜像协作：`/api/image-workflows/*`
+- 用户镜像：`/api/images/*`
+- 评分与评价：`/api/reviews/*`
+- 已雇佣列表：`GET /api/hired`
+
+### 市场与发布者工作台
+
+当前已补齐发布者注册、镜像登记市场、市场详情和发布者工作台：
+
+- 市场列表：`GET /api/market/agent-os`
+- 市场详情：`GET /api/market/agent-os/{agent_os_id}`
+- 发布者登记 Agent OS：`POST /api/publishers/agent-os`
+- 发布者更新 Agent OS：`PUT /api/publishers/agent-os/{agent_os_id}`
+- 发布者查看自己登记的 Agent OS：`GET /api/publishers/agent-os`
+- 发布者工作台：`GET /api/publishers/dashboard`
+- 发布者查看结算记录：`GET /api/publishers/settlements`
+
+### 支付冻结与结算状态机
+
+链下支付订单已经支持黑客松 MVP 所需的冻结与结算状态机：
+
+```text
+pending -> frozen -> confirmed -> settled
+```
+
+对应接口：
+
+- 创建订单：`POST /api/payments/orders`
+- 确认支付：`POST /api/payments/orders/{order_id}/confirm`
+- 冻结金额：`POST /api/payments/orders/{order_id}/freeze`
+- 结算分账：`POST /api/payments/orders/{order_id}/settle`
+
+在 `fire_agent_os` 流程里，平台会自动：
+
+1. 销毁实例
+2. 查询关联订单
+3. 计算平台费与发布者分成
+4. 写入结算记录
+5. 返回最终费用与退款信息
+
+### 协议层与自动雇佣
+
+当前已实现与设计文档对齐的协议接口：
+
+- `GET /api/protocol/search-agent-os`
+- `POST /api/protocol/hire-agent-os`
+- `POST /api/protocol/send-task`
+- `POST /api/protocol/fire-agent-os/{instance_id}`
+- `GET /api/protocol/list-hired`
+- `POST /api/protocol/rate-agent-os`
+- `POST /api/protocol/rate-publisher`
+- `GET /api/protocol/reviews/{target_type}/{target_id}`
+- `POST /api/protocol/auto-hire`
+
+其中 `auto-hire` 已支持 Agent-to-Agent 自动雇佣流程：
+
+1. 搜索匹配的 Agent OS
+2. 选择最优候选
+3. 自动创建订单
+4. 自动冻结与确认
+5. 自动创建实例
+6. 自动派发任务
+
+### 泛化云架构
 
 当前后端架构优先做“泛化能力接口”，而不是优先绑定某一家云厂商：
 
-- `backend/cloud/contracts/`：定义通用云能力接口
+- `backend/cloud/contracts/`：定义实例、镜像、文件、通知等通用能力接口
 - `backend/cloud/orchestrators/`：定义平台编排流程
 - `backend/cloud/registry.py`：按名称管理 provider
 - `backend/cloud/demo_provider.py`：默认演示 provider，不绑定真实云厂商
 - `backend/providers/tencent.py`：示例适配器，保留为后续真实接入入口，但不在默认运行链路中启用
 
-启动方式：
+### 协议客户端
+
+仓库内已经补上两套协议客户端：
+
+- TypeScript：`app/agentOsApi.ts`
+  - `createAgentOsApiClient()`：底层 REST helper
+  - `createAgentMarketClient()`：对齐协议语义的高层 helper
+- Python：`protocol/agent_market.py`
+  - 提供 `search / hire / send_task / fire / list_hired / rate / get_reviews / auto_hire`
+
+### 启动后端
 
 ```bash
 python -m venv backend\.venv
 backend\.venv\Scripts\pip install -r backend\requirements.txt
 backend\.venv\Scripts\uvicorn backend.main:app --reload
+```
+
+默认地址：
+
+```text
+http://127.0.0.1:8000
+```
+
+### 后端验证命令
+
+```bash
+python -m pytest backend/tests -q
+npm run typecheck
 ```
 
 前端如何组合链上和链下调用，见：
@@ -288,8 +378,14 @@ backend\.venv\Scripts\uvicorn backend.main:app --reload
 
 - `programs/omniclaw/src/lib.rs`：Anchor 合约代码。
 - `tests/omniclaw.ts`：端到端 Demo 测试。
-- `app/omniclawClient.ts`：前端调用 helper。
-- `app/agentOsApi.ts`：前端调用 Agent OS 后端的 helper。
+- `app/omniclawClient.ts`：前端链上 helper。
+- `app/agentOsApi.ts`：前端链下 helper 与协议客户端。
+- `protocol/agent_market.py`：Python 协议客户端。
+- `backend/main.py`：FastAPI 入口与服务装配。
+- `backend/models/database.py`：链下数据库模型。
+- `backend/models/schemas.py`：链下请求/响应模型。
+- `backend/services/`：市场、协议、支付、评价、实例等核心业务服务。
+- `backend/routers/`：市场、发布者、协议、支付、评价等 API。
 - `backend/cloud/`：泛化云能力接口、注册中心和编排层。
 - `docs/frontend-integration.md`：前端对接文档。
 - `docs/backend-integration.md`：后端对接文档。
@@ -298,10 +394,12 @@ backend\.venv\Scripts\uvicorn backend.main:app --reload
 
 为了保持黑客松 Demo 足够清晰，本版本暂时不包含：
 
+- 真实云厂商接入主链路
+- 真实链上支付回执校验
 - SPL Token
 - staking
 - dispute 仲裁系统
 - DAO
 - 账户关闭和 rent 回收
 
-这个版本的重点是：能清楚展示任务发布、交付提交、SOL 锁仓、自动付款、reputation 增长、取消、slash 和退款。
+这个版本的重点是：能清楚展示链上雇佣基础流程，以及链下 Agent OS 市场、发布者工作台、支付冻结结算、协议客户端和 Agent-to-Agent 自动雇佣闭环。
